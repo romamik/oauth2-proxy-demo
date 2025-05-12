@@ -1,12 +1,12 @@
-# OAuth2 Proxy demo
+# OAuth2 Proxy Demo
 
-This is a simple example of how to use the [OAuth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) in a Docker Compose setup. 
+This is a simple example of how to use the [OAuth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) in a Docker Compose setup.
 
-## Run and test OAuth2 Proxy with github
+## Run and Test OAuth2 Proxy with GitHub
 
-Create Github OAuth App here: https://github.com/settings/developers. Set the Authorization callback URL to: `"http://localhost:4180/oauth2/callback"`. Write down client id and secret from there.
+Create a GitHub OAuth App here: https://github.com/settings/developers. Set the Authorization callback URL to: `"http://localhost:4180/oauth2/callback"`. Write down the client ID and secret from there.
 
-Create `docker-compose.yml` file:
+Create a `docker-compose.yml` file:
 ```yml
 services:
   oauth2-proxy:
@@ -23,12 +23,12 @@ services:
       OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
 ```
 
-Create cookie secret with the following command:
+Create a cookie secret with the following command:
 ```
 openssl rand -base64 32 | tr -- '+/' '-_'
 ```
 
-Create `.env` file:
+Create a `.env` file:
 ```
 OAUTH2_PROXY_PROVIDER=github
 OAUTH2_PROXY_CLIENT_ID={{client id from github}}
@@ -41,17 +41,17 @@ Run the container:
 docker-compose up --build
 ```
 
-In the browser, go to http://localhost:4180. It will show a page with the `Login with github` button. After clicking the button you will be redirected to your github account and then back to the server.
+In the browser, go to http://localhost:4180. It will show a page with the `Login with GitHub` button. After clicking the button, you will be redirected to your GitHub account and then back to the server.
 
-Test if everything works as expected.
-* http://localhost:4180/oauth2/userinfo - should show your user info from github.
-* http://localhost:4180/oauth2/sign_out - should sign you out. After this the userinfo endpoint will return 401 Unauthorized error.
-* http://localhost:4180/oauth2/start - should sign you in just like clicking the `Login with github` button.
+Test if everything works as expected:
+* http://localhost:4180/oauth2/userinfo - should show your user info from GitHub.
+* http://localhost:4180/oauth2/sign_out - should sign you out. After this, the userinfo endpoint will return a 401 Unauthorized error.
+* http://localhost:4180/oauth2/start - should sign you in just like clicking the `Login with GitHub` button.
 * http://localhost:4180/oauth2/auth - will respond with 202 Accepted or 401 Unauthorized.
 
-## Proxify the server
+## Proxify the Server
 
-The server is a simple node app that shows information about the request. The full code is as follows:
+The server is a simple Node app that shows information about the request. The full code is as follows:
 ```js
 const express = require('express');
 const app = express();
@@ -98,29 +98,29 @@ Also, we need to configure the OAuth2 Proxy in `docker-compose.yml`:
       OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID}
       OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET}
       OAUTH2_PROXY_COOKIE_SECRET: "${OAUTH2_PROXY_COOKIE_SECRET}"
-      # change the redirect url to just localhost instead of localhost:4180
+      # change the redirect URL to just localhost instead of localhost:4180
       OAUTH2_PROXY_REDIRECT_URL: "http://localhost/oauth2/callback"
       # server address
       OAUTH2_PROXY_UPSTREAMS: "http://server:3000"
-      # pass x-forwarded headers
+      # pass X-Forwarded headers
       OAUTH2_PROXY_PASS_USER_HEADERS: "true"
-      # strip x-forwarded headers set from outside
+      # strip X-Forwarded headers set from outside
       OAUTH2_PROXY_SKIP_AUTH_STRIP_HEADERS: "true"
 ```
 
-Also, we need to change callback url in the [github app settings](https://github.com/settings/developers) accordingly.
+Also, we need to change the callback URL in the [GitHub app settings](https://github.com/settings/developers) accordingly.
 
-Now, when navigating to `http://localhost` we should either see the login page or our server page in case if we are already logged in.
+Now, when navigating to `http://localhost`, we should either see the login page or our server page in case we are already logged in.
 
 And there should be `x-forwarded-user` and `x-forwarded-email` headers set that can be used in the server code to identify the user.
 
-In this setup OAuth2 Proxy is running as a reverse proxy and only allows access for the authentificated users. The server can use request headers `x-forwarded-user` and `x-forwarded-email` to identify the user.
+In this setup, OAuth2 Proxy is running as a reverse proxy and only allows access for authenticated users. The server can use request headers `x-forwarded-user` and `x-forwarded-email` to identify the user.
 
-## Running both the OAuth2 Proxy and the server behind nginx
+## Running Both the OAuth2 Proxy and the Server Behind Nginx
 
-It is possible to setup both the OAuth2 Proxy and the server behind nginx. Nginx is often already used as a reverse proxy, so using oauth2-proxy as an additional proxy can be not necessary. 
+It is possible to set up both the OAuth2 Proxy and the server behind Nginx. Nginx is often already used as a reverse proxy, so using OAuth2 Proxy as an additional proxy may not be necessary.
 
-Nginx configuration is taken straight from the [oauth2-proxy website](https://oauth2-proxy.github.io/oauth2-proxy/configuration/integration). With just changing some addresses and ports:
+Nginx configuration is taken straight from the [OAuth2 Proxy website](https://oauth2-proxy.github.io/oauth2-proxy/configuration/integration), with some address and port adjustments:
 ```
 server {
   listen 80;
@@ -130,15 +130,13 @@ server {
     proxy_set_header Host                    $host;
     proxy_set_header X-Real-IP               $remote_addr;
     proxy_set_header X-Auth-Request-Redirect $request_uri;
-    # or, if you are handling multiple domains:
-    # proxy_set_header X-Auth-Request-Redirect $scheme://$host$request_uri;
   }
+
   location = /oauth2/auth {
     proxy_pass       http://oauth2-proxy:4180;
     proxy_set_header Host             $host;
     proxy_set_header X-Real-IP        $remote_addr;
     proxy_set_header X-Forwarded-Uri  $request_uri;
-    # nginx auth_request includes headers but not body
     proxy_set_header Content-Length   "";
     proxy_pass_request_body           off;
   }
@@ -147,47 +145,35 @@ server {
     auth_request /oauth2/auth;
     error_page 401 =403 /oauth2/sign_in;
 
-    # pass information via X-User and X-Email headers to backend,
-    # requires running with --set-xauthrequest flag
     auth_request_set $user   $upstream_http_x_auth_request_user;
     auth_request_set $email  $upstream_http_x_auth_request_email;
     proxy_set_header X-User  $user;
     proxy_set_header X-Email $email;
 
-    # if you enabled --pass-access-token, this will pass the token to the backend
     auth_request_set $token  $upstream_http_x_auth_request_access_token;
     proxy_set_header X-Access-Token $token;
 
-    # if you enabled --cookie-refresh, this is needed for it to work with auth_request
     auth_request_set $auth_cookie $upstream_http_set_cookie;
     add_header Set-Cookie $auth_cookie;
 
-    # When using the --set-authorization-header flag, some provider's cookies can exceed the 4kb
-    # limit and so the OAuth2 Proxy splits these into multiple parts.
-    # Nginx normally only copies the first `Set-Cookie` header from the auth_request to the response,
-    # so if your cookies are larger than 4kb, you will need to extract additional cookies manually.
     auth_request_set $auth_cookie_name_upstream_1 $upstream_cookie_auth_cookie_name_1;
 
-    # Extract the Cookie attributes from the first Set-Cookie header and append them
-    # to the second part ($upstream_cookie_* variables only contain the raw cookie content)
     if ($auth_cookie ~* "(; .*)") {
         set $auth_cookie_name_0 $auth_cookie;
         set $auth_cookie_name_1 "auth_cookie_name_1=$auth_cookie_name_upstream_1$1";
     }
 
-    # Send both Set-Cookie headers now if there was a second part
     if ($auth_cookie_name_upstream_1) {
         add_header Set-Cookie $auth_cookie_name_0;
         add_header Set-Cookie $auth_cookie_name_1;
     }
 
     proxy_pass http://server:3000/;
-    # or "root /path/to/site;" or "fastcgi_pass ..." etc
   }
 }
 ```
 
-We also need to add nginx to `docker-compose.yml` file:
+We also need to add Nginx to the `docker-compose.yml` file:
 ```yml
 services:
 
@@ -199,9 +185,9 @@ services:
      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
 ```
 
-And to change `oauth2-proxy` configuration in the same `docker-compose.yml` file:
+And change the `oauth2-proxy` configuration in the same `docker-compose.yml` file:
 ```yml
-  auth2-proxy:
+  oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.9.0-alpine
     # do not expose the ports
     environment:
@@ -212,28 +198,22 @@ And to change `oauth2-proxy` configuration in the same `docker-compose.yml` file
       OAUTH2_PROXY_REDIRECT_URL: "http://localhost/oauth2/callback"
       OAUTH2_PROXY_EMAIL_DOMAINS: "*"
       OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-      
-      # remove unneeded environment variables: 
-      # OAUTH2_PROXY_UPSTREAMS: "http://server:3000"
-      # OAUTH2_PROXY_PASS_USER_HEADERS: "true"
-      # OAUTH2_PROXY_SKIP_AUTH_STRIP_HEADERS: "true"
 
-      # set response headers that will be read by nginx and used to set x-user and x-email header for our server
+      # set response headers that will be read by Nginx and used to set X-User and X-Email headers for our server
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
-      # make sure oauth2-proxy is aware it is behind a reverse proxy, otherwise it can behave incorrectly
+      # make sure oauth2-proxy is aware it is behind a reverse proxy
       OAUTH2_PROXY_REVERSE_PROXY: "true"
-
 ```
 
-Now, everything should work as in previous example, except now the server receives `X-User` and `X-Email` headers instead of `x-forwarded-user` and `x-forwarded-email`.
+Now, everything should work as in the previous example, except now the server receives `X-User` and `X-Email` headers instead of `x-forwarded-user` and `x-forwarded-email`.
 
-## Calling our server even for not authenticated users
+## Calling Our Server Even for Non-Authenticated Users
 
-Sometimes we want to have not authenticated users to have access to the server, just to be able to know which user is logged in if any.
+Sometimes we want non-authenticated users to have access to the server, just to be able to know which user is logged in, if any.
 
-This can be done, by changing the nginx configuration so that it does not respond with 401 Unauthorized if oauth2-proxy repsponded with 401.
+This can be done by changing the Nginx configuration so that it does not respond with 401 Unauthorized if OAuth2 Proxy responded with 401.
 
-In the nginx configuration file:
+In the Nginx configuration file:
 ```
   ...
 
@@ -254,11 +234,11 @@ In the nginx configuration file:
     ...
 ```
 
-Now even non-authentificated users can access the server, and the server can still check `x-user` and `x-email` headers to know which user is logged in.
+Now even non-authenticated users can access the server, and the server can still check `X-User` and `X-Email` headers to know which user is logged in.
 
-## Sign in/sign out links
+## Sign In / Sign Out Links
 
-As we now do not have automatic sign-in page, we need a way for user to sign in, so let's modify server code:
+As we now do not have an automatic sign-in page, we need a way for users to sign in. So let's modify the server code:
 ```
   ...
   const user = req.headers['x-user'];
