@@ -226,3 +226,58 @@ And to change `oauth2-proxy` configuration in the same `docker-compose.yml` file
 ```
 
 Now, everything should work as in previous example, except now the server receives `X-User` and `X-Email` headers instead of `x-forwarded-user` and `x-forwarded-email`.
+
+## Calling our server even for not authenticated users
+
+Sometimes we want to have not authenticated users to have access to the server, just to be able to know which user is logged in if any.
+
+This can be done, by changing the nginx configuration so that it does not respond with 401 Unauthorized if oauth2-proxy repsponded with 401.
+
+In the nginx configuration file:
+```
+  ...
+
+  # fallback for non-authenticated requests
+  location @noauth {
+    # explicitly clear any headers
+    proxy_set_header X-User  "";
+    proxy_set_header X-Email "";
+    proxy_pass http://server:3000;
+  }
+
+  location / {
+    auth_request /oauth2/auth;
+
+    # replace 403 /oauth2/sign_in with @noauth
+    error_page 401 = @noauth;
+
+    ...
+```
+
+Now even non-authentificated users can access the server, and the server can still check `x-user` and `x-email` headers to know which user is logged in.
+
+## Sign in/sign out links
+
+As we now do not have automatic sign-in page, we need a way for user to sign in, so let's modify server code:
+```
+  ...
+  const user = req.headers['x-user'];
+  const email = req.headers['x-email'];
+
+  let userStatus;
+  if (user) {
+    userStatus = `Signed in as ${user}. <a href="/oauth2/sign_out">Sign out</a>`;
+  }
+  else {
+    userStatus = 'Not signed in. <a href="/oauth2/start">Sign in</a>';
+  }
+  
+  res.send(`
+    ${userStatus}
+    <pre>
+      ${JSON.stringify(data, null, 2)}
+    </pre>
+  `);
+```
+
+Now we can see who is signed in and have a link to sign in or out.
